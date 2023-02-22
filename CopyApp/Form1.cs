@@ -1,7 +1,10 @@
-﻿namespace CopyApp
+﻿using System.Text;
+
+namespace CopyApp
 {
     public partial class Form1 : Form
     {
+        byte[] data;
         public Form1()
         {
             InitializeComponent();
@@ -9,10 +12,10 @@
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            tb_originPath.Text = Directory.GetCurrentDirectory();
-            tb_targetPath.Text = Directory.GetCurrentDirectory();
-            //tb_originPath.Text = @"D:\text.txt";
-            //tb_targetPath.Text = @"D:\textcopy.txt";
+            //tb_originPath.Text = Directory.GetCurrentDirectory();
+            //tb_targetPath.Text = Directory.GetCurrentDirectory();
+            tb_originPath.Text = @"D:\text.txt";
+            tb_targetPath.Text = @"D:\textcopy.txt";
         }
 
         private void btn_openFile_Click(object sender, EventArgs e)
@@ -42,15 +45,16 @@
 
 
             //копирует всю информацию в файле
-            FileStream fsopen = new FileStream(tb_originPath.Text, FileMode.Open);
+            FileStream fsopen = new FileStream(tb_originPath.Text, FileMode.Open, FileAccess.Read, FileShare.Read, 100, FileOptions.Asynchronous);
             FileStream fsclose = new FileStream(tb_targetPath.Text, FileMode.OpenOrCreate);
-            byte[] b;
+           
             long lengthfile = fsopen.Length;
+            //  Устанавливаем начальные значения прогресс бара       
             pb_CopyProgress.Maximum = 1000;
             pb_CopyProgress.Minimum = 0;
             //long test = 50;
-            int countOperation = 100;
-            long[] partfilelength= new long[countOperation];
+            int countOperation = 1000;
+            long[] partfilelength = new long[countOperation];
             for (int i = 0; i < countOperation; i++)
             {
                 partfilelength[i] = lengthfile /*test*/ / countOperation;
@@ -68,21 +72,49 @@
             //{
             //    fsclose.WriteByte((byte)b);
             //}
-            long pbvalue = lengthfile / 1000;
-            foreach (int i in partfilelength)
-            {
-                b = new byte[i];
-                fsopen.Read(b, 0, b.Length);
-                fsclose.Write(b, 0, b.Length);
 
-                pb_CopyProgress.Value = (int)(lengthfile / pbvalue);
+            //устанавливаем значение прогресс бара
+            long pbvalue = 1;
+            if (lengthfile > 1000)
+                pbvalue = lengthfile / 1000;
+            for (int i = 0; i < 3; i++)
+            {
+            data = new byte[partfilelength[i]];
+            fsopen.BeginRead(data, 0, data.Length, MessageBoxPrint, fsopen);
 
             }
+
+            //примеры не эффективной обработки Async запросов
+            //IAsyncResult result;
+            //result = fsopen.BeginRead(b, 0, b.Length, null, null);
+            /*fsopen.EndRead(result);*/ //ждём окончание потока и получаем Result. останаваливает поток, пока Async не вернёт результат
+
+            /*while (!result.IsCompleted) // проверка выполнения fsopen.BeginRead. 
+           // Асинхронная операция не возвращает готовый результат, пока не выполнит все операции.
+           // А запрос к результатам мы можем попробовать сделать раньше выполнения и это вызовет ошибку.
+          {
+              richTextBox1.Text = "Еще не готово";
+          }*/
+
+            //foreach (long i in partfilelength)
+            //{
+            //    b = new byte[i];
+            //    fsopen.Read(b, 0, b.Length);
+            //    fsclose.Write(b, 0, b.Length);
+            //    pb_CopyProgress.Value = (int)(lengthfile / pbvalue);
+            //}
             fsopen.Close();
             fsclose.Close();
-
-
-
+        }
+        void MessageBoxPrint (IAsyncResult asyncResult)
+        {
+            FileStream fileStream = (FileStream)asyncResult.AsyncState;
+          fileStream.EndRead(asyncResult);
+            //Array.Resize(ref data, result);
+            string res =Encoding.UTF8.GetString(data);
+           
+            MessageBox.Show(res);
+            
         }
     }
 }
